@@ -23,7 +23,7 @@ shader_t* shader_use(shader_t* shader) {
 }
 
 void shader_compile(shader_t* shader, const GLchar* vertexSrc, const GLchar* fragmentSrc, const GLchar* geometrySrc) {
-	GLuint sVert, sFrag, gShader;
+	GLuint sVert, sFrag, sGeom;
 
 	// vertex shader
 	sVert = glCreateShader(GL_VERTEX_SHADER);
@@ -39,10 +39,10 @@ void shader_compile(shader_t* shader, const GLchar* vertexSrc, const GLchar* fra
 
 	// compile geometry shader if source code is present
 	if (geometrySrc != NULL) {
-		gShader = glCreateShader(GL_GEOMETRY_SHADER);
-		glShaderSource(gShader, 1, &geometrySrc, NULL);
-		glCompileShader(gShader);
-		shader_checkCompileErrors(gShader, "GEOMETRY");
+		sGeom = glCreateShader(GL_GEOMETRY_SHADER);
+		glShaderSource(sGeom, 1, &geometrySrc, NULL);
+		glCompileShader(sGeom);
+		shader_checkCompileErrors(sGeom, "GEOMETRY");
 	}
 
 	// shader program
@@ -50,7 +50,7 @@ void shader_compile(shader_t* shader, const GLchar* vertexSrc, const GLchar* fra
 	glAttachShader(shader->ID, sVert);
 	glAttachShader(shader->ID, sFrag);
 	if (geometrySrc != NULL) {
-		glAttachShader(shader->ID, gShader);
+		glAttachShader(shader->ID, sGeom);
 	}
 	glLinkProgram(shader->ID);
 	shader_checkCompileErrors(shader->ID, "PROGRAM");
@@ -60,7 +60,7 @@ void shader_compile(shader_t* shader, const GLchar* vertexSrc, const GLchar* fra
 	glDeleteShader(sVert);
 	glDeleteShader(sFrag);
 	if (geometrySrc != NULL) {
-		glDeleteShader(geometrySrc);
+		glDeleteShader(sGeom);
 	}
 }
 
@@ -84,11 +84,11 @@ void shader_setVector2f_s(shader_t* shader, const GLchar *name, GLfloat x, GLflo
 	glUniform2f(glGetUniformLocation(shader->ID, name), x, y);
 }
 
-void shader_setVector2f(shader_t* shader, const GLchar *name, const vec3 *value, GLboolean useShader) {
+void shader_setVector2f(shader_t* shader, const GLchar *name, const vec3 value, GLboolean useShader) {
 	if (useShader) {
 		shader_use(shader);
 	}
-	glUniform2f(glGetUniformLocation(shader->ID, name), *value[0], *value[1]);
+	glUniform2f(glGetUniformLocation(shader->ID, name), value[0], value[1]);
 }
 void shader_setVector3f_s(shader_t* shader, const GLchar *name, GLfloat x, GLfloat y, GLfloat z, GLboolean useShader) {
 	if (useShader) {
@@ -96,11 +96,11 @@ void shader_setVector3f_s(shader_t* shader, const GLchar *name, GLfloat x, GLflo
 	}
 	glUniform3f(glGetUniformLocation(shader->ID, name), x, y, z);
 }
-void shader_setVector3f(shader_t* shader, const GLchar *name, const vec3 *value, GLboolean useShader) {
+void shader_setVector3f(shader_t* shader, const GLchar *name, const vec3 value, GLboolean useShader) {
 	if (useShader) {
 		shader_use(shader);
 	}
-	glUniform3f(glGetUniformLocation(shader->ID, name), *value[0], *value[1], *value[2]);
+	glUniform3f(glGetUniformLocation(shader->ID, name), value[0], value[1], value[2]);
 }
 void shader_setVector4f_s(shader_t* shader, const GLchar *name, GLfloat x, GLfloat y, GLfloat z, GLfloat w, GLboolean useShader) {
 	if (useShader) {
@@ -108,17 +108,17 @@ void shader_setVector4f_s(shader_t* shader, const GLchar *name, GLfloat x, GLflo
 	}
 	glUniform4f(glGetUniformLocation(shader->ID, name), x, y, z, w);
 }
-void shader_setVector4f(shader_t* shader, const GLchar *name, const vec4 *value, GLboolean useShader) {
+void shader_setVector4f(shader_t* shader, const GLchar *name, const vec4 value, GLboolean useShader) {
 	if (useShader) {
 		shader_use(shader);
 	}
-	glUniform4f(glGetUniformLocation(shader->ID, name), *value[0], *value[1], *value[2], *value[3]);
+	glUniform4f(glGetUniformLocation(shader->ID, name), value[0], value[1], value[2], value[3]);
 }
-void shader_setMatrix4(shader_t* shader, const GLchar *name, const mat4 *matrix, GLboolean useShader) {
+void shader_setMatrix4(shader_t* shader, const GLchar *name, const mat4 matrix, GLboolean useShader) {
 	if (useShader) {
 		shader_use(shader);
 	}
-	glUniformMatrix4fv(glGetUniformLocation(shader->ID, name), 1, GL_FALSE, *matrix);
+	glUniformMatrix4fv(glGetUniformLocation(shader->ID, name), 1, GL_FALSE, matrix[0]);
 }
 void shader_checkCompileErrors(GLuint object, char* type) {
 	GLint success;

@@ -2,18 +2,29 @@
 
 #include <stdio.h>
 
+#define USE_STB 1
+
+#if USE_STB
+#define STBI_ONLY_PNG
+#define STBI_ONLY_BMP
+#define STBI_ONLY_PSD
+#define STBI_FAILURE_USERMSG
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+//#include <stb_image_aug.h>
+#else
+#include <SOIL.h>
+#endif
 
 #define MAX_RESOURCE 8
 
 struct shader_resource {
-	char* shader_name;
+	const char* shader_name;
 	shader_t* shader_file;
 };
 
 struct texture_resource {
-	char* texture_name;
+	const char* texture_name;
 	texture_t* texture_file;
 };
 
@@ -27,7 +38,7 @@ struct resource_manager {
 /* Local Function Prototypes */
 static shader_t* loadShaderFromFile(const GLchar* vShaderFile, const GLchar *fShaderFile, const GLchar *gShaderFile);
 static texture_t* loadTextureFromFile(const GLchar* file, GLboolean alpha);
-static char* readFromFile(char* filepath);
+static char* readFromFile(const GLchar* filepath);
 
 static resource_manager rm;
 
@@ -36,6 +47,9 @@ void resource_initManager() {
 	rm.shaders = (shader_resource*)malloc(sizeof(shader_resource) * MAX_RESOURCE);
 	rm.shader_count = 0;
 	rm.texture_count = 0;
+
+	memset(rm.textures, 0, sizeof(rm.textures));
+	memset(rm.shaders, 0, sizeof(rm.shaders));
 };
 
 void resource_destroy() {
@@ -80,8 +94,10 @@ void resource_destroyShader(char* name)
 
 shader_t* resource_getShader(char* name)
 {
+	int ret;
 	for (int i = 0; i < rm.shader_count; ++i) {
-		if (strcmp(rm.shaders[i].shader_name, name))
+		ret = strcmp(rm.shaders[i].shader_name, name);
+		if (ret == 0)
 		{
 			return rm.shaders[i].shader_file;
 		}
@@ -116,14 +132,16 @@ void resource_destroyTexture(char* name)
 
 texture_t* resource_getTexture(char* name)
 {
+	int ret;
 	for (int i = 0; i < rm.texture_count; i++)
 	{
-		if (strcmp(rm.textures[i].texture_name, name)) {
+		ret = strcmp(rm.textures[i].texture_name, name);
+		if (ret == 0) {
 			return rm.textures[i].texture_file;
 		}
 	}
 
-	fprintf(stderr, "Texture '%s' nor found.\n", name);
+	fprintf(stderr, "Texture '%s' not found.\n", name);
 	return NULL;
 }
 
@@ -186,8 +204,16 @@ static texture_t* loadTextureFromFile(const GLchar* file, GLboolean alpha)
 
 	// load image
 	int width, height, comp;
-	unsigned char* data = stbi_load(file, &width, &height, &comp, 0);
-	
+	unsigned char* data = NULL;
+
+	//data = SOIL_load_image(file, &width, &height, 0, texture->image_fmt == GL_RGBA ? SOIL_LOAD_RGBA : SOIL_LOAD_RGB);
+	data = stbi_load((char*)file, &width, &height, &comp, alpha ? STBI_rgb_alpha : STBI_rgb);
+	//fprintf(stderr, stbi_failure_reason());
+	if (!data) {
+		fprintf(stderr, "Failed to load texture.\n");
+		return NULL;
+	}
+
 	// generate texture
 	texture_generate(texture, width, height, data);
 
@@ -196,10 +222,10 @@ static texture_t* loadTextureFromFile(const GLchar* file, GLboolean alpha)
 	return texture;
 }
 
-static char* readFromFile(char* filepath)
+static char* readFromFile(const GLchar* filepath)
 {
 	long fileSize;
-	char* buffer;
+	char* buffer = NULL;
 	size_t result;
 
 	if (filepath == NULL) return NULL;
@@ -212,30 +238,48 @@ static char* readFromFile(char* filepath)
 #ifdef linux
 	FILE* fp = fopen(filepath, "rb");
 #endif
-	if (fp == NULL) {
+	if (fp != NULL) {
+		// get the file size
+		if (fseek(fp, 0L, SEEK_END) == 0) {
+			fileSize = ftell(fp);
+			rewind(fp);
+
+			if (fileSize == -1) {
+				fprintf(stderr, "File Size error\n");
+				perror("ftell");
+				fclose(fp);
+				return NULL;
+			}
+
+
+			// allocate memory for the file contents
+			buffer = (char*)malloc(sizeof(char) * (fileSize + 1));
+			memset(buffer, '\0', sizeof(buffer));
+
+			if (buffer == NULL) {
+				fprintf(stderr, "Memory error\n");
+				fflush(stderr);
+			}
+
+			// read files contents
+			result = fread(buffer, sizeof(char), fileSize, fp);
+			if (result != fileSize) {
+				fprintf(stderr, "Reading error\n");
+				perror("fread");
+				fflush(stderr);
+			}
+
+			buffer[result++] = '\0';
+
+			fprintf(stdout, "DEBUG: '%s' contents:\n %s\n\n", filepath, buffer);
+		}
+
+		fclose(fp);
+	}
+	else {
 		fprintf(stderr, "File error\n");
 		fflush(stderr);
 	}
 
-	// get the file size
-	fseek(fp, 0, SEEK_END);
-	fileSize = ftell(fp);
-	rewind(fp);
-
-	// allocate memory for the file contents
-	buffer = (char*)malloc(sizeof(char)*fileSize);
-	if (buffer == NULL) {
-		fprintf(stderr, "Memory error\n");
-		fflush(stderr);
-	}
-
-	// read files contents
-	result = fread(buffer, 1, fileSize, fp);
-	if (result != fileSize) {
-		fprintf(stderr, "Reading error\n");
-		fflush(stderr);
-	}
-
-	fclose(fp);
 	return buffer;
 }
